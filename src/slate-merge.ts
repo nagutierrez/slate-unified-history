@@ -107,10 +107,12 @@ export function decideHistoryMerge(input: DecideMergeInput): DecideMergeResult {
     return { action: "skip" };
   }
 
+  // Match slate-history: non-empty `editor.operations` means we're still in the same
+  // synchronous apply/normalize flush, so merge without requiring `includes(lastOp)`.
   if (merge == null) {
     if (lastBatch == null) {
       merge = false;
-    } else if (lastOp !== undefined && editorOperations.includes(lastOp)) {
+    } else if (editorOperations.length !== 0) {
       merge = true;
     } else {
       merge = shouldMerge(op, lastOp);

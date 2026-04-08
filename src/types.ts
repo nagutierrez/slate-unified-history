@@ -176,7 +176,10 @@ export type DecideMergeInput = {
   op: Operation;
   /** Batch to merge into, if any (top-of-stack slate batch for that editor in unified mode). */
   lastBatch: SlateHistoryBatch | undefined;
-  /** Current in-flight operations on the editor (for batch boundary detection). */
+  /**
+   * `editor.operations` at apply entry: non-empty means same flush as slate-history
+   * (`operations.length !== 0` → merge into `lastBatch`).
+   */
   editorOperations: Operation[];
   /** Explicit save flag; `undefined` falls back to {@link shouldSave}. */
   saving: boolean | undefined;

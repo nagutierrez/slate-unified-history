@@ -218,9 +218,9 @@ describe("decideHistoryMerge", () => {
     expect(r.action).toBe("newBatch");
   });
 
-  it("forces merge when lastOp is in editorOperations (same-flush batch)", () => {
-    // Ops that are non-contiguous paths would normally not merge via shouldMerge,
-    // but since lastOp is still in the current flush (editorOperations), they should merge.
+  it("forces merge when editorOperations is non-empty (slate-history same-flush rule)", () => {
+    // Non-contiguous paths would not merge via shouldMerge; slate-history still merges
+    // whenever `operations.length !== 0` during the same flush.
     const lastOp = {
       type: "insert_text",
       path: [1, 0],
@@ -238,6 +238,37 @@ describe("decideHistoryMerge", () => {
       op: next,
       lastBatch,
       editorOperations: [lastOp, next],
+      saving: undefined,
+      merging: undefined,
+      splittingOnce: false,
+      selection: null,
+    });
+    expect(r.action).toBe("merge");
+  });
+
+  it("merges when operations non-empty even if last batch op is not in editorOperations", () => {
+    const atDocRoot = insertOp(0, "a");
+    const lastInBatch = {
+      type: "insert_text",
+      path: [1, 0],
+      offset: 0,
+      text: "z",
+    } as Operation;
+    const lastBatch = {
+      operations: [atDocRoot, lastInBatch],
+      selectionBefore: null,
+    };
+    const next = insertOp(1, "b");
+    const decoyInFlush = {
+      type: "insert_text",
+      path: [2, 0],
+      offset: 0,
+      text: "q",
+    } as Operation;
+    const r = decideHistoryMerge({
+      op: next,
+      lastBatch,
+      editorOperations: [decoyInFlush],
       saving: undefined,
       merging: undefined,
       splittingOnce: false,
