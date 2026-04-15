@@ -67,6 +67,8 @@ unregister();
 ## Store: `createMemoryUnifiedStore`
 
 ```ts
+import type { WillApplySlateHistoryInput } from "slate-unified-history";
+
 function createMemoryUnifiedStore(
   options?: CreateMemoryUnifiedStoreOptions,
 ): MemoryUnifiedHistoryStore;
@@ -74,10 +76,14 @@ function createMemoryUnifiedStore(
 type CreateMemoryUnifiedStoreOptions = {
   maxUndos?: number;
   customHandlers?: Record<string, CustomCommandHandler>;
+  /** Runs immediately before each slate undo/redo applies (see Global undo / refocus below). */
+  onWillApplySlateHistoryCommand?: (input: WillApplySlateHistoryInput) => void;
 };
 ```
 
 Creates the default in-memory implementation of `UnifiedHistoryStore`. `maxUndos` defaults to **100** (same cap as slate-history).
+
+**`onWillApplySlateHistoryCommand`** — synchronous callback invoked only for **`kind: 'slate'`** steps, after the command is popped and the registered editor is resolved, **before** any `Transforms.setSelection` or inverse/forward `apply` for that step. Use it when toolbar or global shortcuts call `store.undo()` / `store.redo()` while DOM focus is outside the Slate surface so you can refocus the correct editor first (e.g. `ReactEditor.focus(editor)` from `slate-react`). Payload: `{ editor, editorKey, command, direction: 'undo' | 'redo' }` (**`WillApplySlateHistoryInput`**).
 
 **Custom handlers** map command **`id`** strings to `{ undo(payload), redo(payload) }`. Those functions live **outside** the stack; `pushCustom` only stores `id` + `payload`. Register at creation or via **`store.registerCustomHandler`** (returns unregister).
 
@@ -131,7 +137,8 @@ Redo stack is cleared whenever a new undoable action is recorded (same invariant
 | **`CustomMergePredicate`**                   | `(top, incoming) => boolean` for `shouldMerge`.              |
 | **`UnifiedHistoryStore`**                    | Store interface.                                             |
 | **`WithUnifiedHistoryOptions`**              | `{ editorKey, store }`.                                      |
-| **`CreateMemoryUnifiedStoreOptions`**        | `maxUndos?`, `customHandlers?`.                              |
+| **`CreateMemoryUnifiedStoreOptions`**        | `maxUndos?`, `customHandlers?`, `onWillApplySlateHistoryCommand?`. |
+| **`WillApplySlateHistoryInput`**             | Payload for `onWillApplySlateHistoryCommand` (`editor`, `editorKey`, `command`, `direction`). |
 | **`DecideMergeInput` / `DecideMergeResult`** | For **`decideHistoryMerge`**.                                |
 
 ---
@@ -253,6 +260,23 @@ function UndoRedoToolbar({ store }: { store: UnifiedHistoryStore }) {
 ```
 
 Keyboard shortcuts can call the same **`store.undo()`** / **`store.redo()`** from a single module-level store reference.
+
+### Global undo / refocus
+
+When undo/redo runs while focus is **not** on the Slate editable, the document may still update but the change is easy to miss. Pass **`onWillApplySlateHistoryCommand`** into **`createMemoryUnifiedStore`** and focus the editor that matches **`input.editorKey`** (or use **`input.editor`**) before Slate applies the batch:
+
+```ts
+import { ReactEditor } from "slate-react";
+import { createMemoryUnifiedStore } from "slate-unified-history";
+
+const store = createMemoryUnifiedStore({
+  onWillApplySlateHistoryCommand({ editor }) {
+    ReactEditor.focus(editor);
+  },
+});
+```
+
+The callback is **not** called for **`kind: 'custom'`** undo/redo steps.
 
 ---
 

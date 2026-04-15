@@ -1,6 +1,6 @@
 {
   "name": "slate-unified-history",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Slate history with pluggable unified undo/redo (Slate batches + custom commands).",
   "author": "Nathan Gutierrez",
   "repository": {

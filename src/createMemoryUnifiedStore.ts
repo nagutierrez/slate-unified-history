@@ -10,6 +10,7 @@ import type {
   PushCustomOptions,
   SlateHistoryBatch,
   UnifiedHistoryStore,
+  WillApplySlateHistoryInput,
 } from "./types.js";
 import { findMergeTargetSlateBatch } from "./slate-merge.js";
 
@@ -46,6 +47,13 @@ export type CreateMemoryUnifiedStoreOptions = {
   maxUndos?: number;
   /** Initial custom command handlers (`id` → undo/redo). More can be added via {@link UnifiedHistoryStore.registerCustomHandler}. */
   customHandlers?: Record<string, CustomCommandHandler>;
+  /**
+   * Called synchronously for each **`kind: 'slate'`** undo or redo, after the command is popped
+   * and the editor is resolved, before any selection restore or inverse/forward ops run.
+   * Use to refocus the editable (e.g. `ReactEditor.focus(editor)`) when global shortcuts call
+   * {@link UnifiedHistoryStore.undo} / {@link UnifiedHistoryStore.redo} while focus is outside the editor.
+   */
+  onWillApplySlateHistoryCommand?: (input: WillApplySlateHistoryInput) => void;
 };
 
 /**
@@ -59,6 +67,8 @@ export function createMemoryUnifiedStore(
   options?: CreateMemoryUnifiedStoreOptions,
 ): MemoryUnifiedHistoryStore {
   const maxUndos = options?.maxUndos ?? defaultMaxUndos;
+  const onWillApplySlateHistoryCommand =
+    options?.onWillApplySlateHistoryCommand;
   const customHandlers = new Map<string, CustomCommandHandler>(
     Object.entries(options?.customHandlers ?? {}),
   );
@@ -297,6 +307,12 @@ export function createMemoryUnifiedStore(
             "slate-unified-history: registered editor must be a HistoryEditor for slate undo",
           );
         }
+        onWillApplySlateHistoryCommand?.({
+          editor,
+          editorKey: cmd.editorKey,
+          command: cmd,
+          direction: "undo",
+        });
         HistoryEditor.withoutSaving(editor, () => {
           Editor.withoutNormalizing(editor, () => {
             const inverseOps = cmd.batch.operations
@@ -332,6 +348,12 @@ export function createMemoryUnifiedStore(
             "slate-unified-history: registered editor must be a HistoryEditor for slate redo",
           );
         }
+        onWillApplySlateHistoryCommand?.({
+          editor,
+          editorKey: cmd.editorKey,
+          command: cmd,
+          direction: "redo",
+        });
         if (cmd.batch.selectionBefore) {
           Transforms.setSelection(editor, cmd.batch.selectionBefore);
         }

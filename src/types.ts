@@ -17,6 +17,18 @@ export type HistorySlateCommand = {
 };
 
 /**
+ * Argument to **`onWillApplySlateHistoryCommand`** passed to **`createMemoryUnifiedStore`**.
+ * Fired synchronously after the command is popped and the editor is resolved, before any
+ * `Transforms.setSelection` / inverse or forward `apply` runs for that slate step.
+ */
+export type WillApplySlateHistoryInput = {
+  editor: Editor;
+  editorKey: string;
+  command: HistorySlateCommand;
+  direction: "undo" | "redo";
+};
+
+/**
  * One recorded custom micro-step (serializable). Handled at undo/redo time via
  * {@link UnifiedHistoryStore.registerCustomHandler}.
  */
